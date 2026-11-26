@@ -1,5 +1,6 @@
 import AppKit
 import CoreBluetooth
+import ServiceManagement
 
 // WalkingPad A1/R1/C2/P1 protocol (service FE00, notify FE01, write FE02), as reverse-engineered by ph4-walkingpad.
 func cmd(_ k: UInt8, _ v: UInt8) -> [UInt8] { [0xF7, 0xA2, k, v, UInt8((0xA2 + Int(k) + Int(v)) & 0xFF), 0xFD] }
@@ -53,7 +54,11 @@ final class Pad: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self] _ in self?.tick() }
     }
 
-    func go() { queue += [cmd(2, 1), cmd(4, 1)] } // manual mode, start belt
+    // manual mode, start belt, wait out the ~3 s countdown (stat polls), then the default speed
+    func go(_ kmh: Double) {
+        queue += [cmd(2, 1), cmd(4, 1)] + Array(repeating: cmd(0, 0), count: 6)
+        setSpeed(kmh)
+    }
     func stop() { queue.append(cmd(1, 0)) }
     func setSpeed(_ kmh: Double) { queue.append(cmd(1, UInt8(min(60, max(0, kmh * 10)).rounded()))) }
 
@@ -116,6 +121,16 @@ final class App: NSObject, NSApplicationDelegate {
     let pad = Pad()
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let info = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    let speeds = NSMenu()
+    lazy var login: NSMenuItem = {
+        let i = NSMenuItem(title: "Lancer au démarrage", action: #selector(toggleLogin), keyEquivalent: "")
+        i.target = self
+        return i
+    }()
+    var defaultSpeed: Double {
+        get { UserDefaults.standard.object(forKey: "defaultSpeed") as? Double ?? 3.0 }
+        set { UserDefaults.standard.set(newValue, forKey: "defaultSpeed") }
+    }
 
     func applicationDidFinishLaunching(_ n: Notification) {
         let menu = NSMenu()
@@ -123,7 +138,6 @@ final class App: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "Go", action: #selector(go), keyEquivalent: "g").target = self
         menu.addItem(withTitle: "Stop", action: #selector(stop), keyEquivalent: "s").target = self
-        let speeds = NSMenu()
         for kmh in stride(from: 1.0, through: 6.0, by: 0.5) {
             let i = speeds.addItem(withTitle: "\(kmh) km/h", action: #selector(speed(_:)), keyEquivalent: "")
             i.target = self
@@ -131,27 +145,47 @@ final class App: NSObject, NSApplicationDelegate {
         }
         menu.addItem(withTitle: "Vitesse", action: nil, keyEquivalent: "").submenu = speeds
         menu.addItem(.separator())
+        menu.addItem(login)
         menu.addItem(withTitle: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
+        item.button?.image = NSImage(systemSymbolName: "figure.walk", accessibilityDescription: "WalkPad")
+        item.button?.imagePosition = .imageLeading
         pad.onChange = { [weak self] in self?.refresh() }
         refresh()
     }
 
     func refresh() {
         let s = pad.stats
-        item.button?.title = !pad.connected ? "🚶…" : s.belt == 1 ? String(format: "🚶 %.1f km/h · %.2f km", s.speed, s.distKm) : "🚶"
+        item.button?.appearsDisabled = !pad.connected
+        item.button?.title = s.belt == 1 && pad.connected ? String(format: " %d pas · %.1f km/h", s.steps, s.speed) : ""
+        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        speeds.items.forEach { $0.state = $0.representedObject as? Double == defaultSpeed ? .on : .off }
         info.title = pad.connected ? String(format: "%d min · %.2f km · %d pas", s.time / 60, s.distKm, s.steps) : "Recherche du tapis…"
     }
 
-    @objc func go() { pad.go() }
+    @objc func toggleLogin() {
+        do {
+            if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() } else { try SMAppService.mainApp.register() }
+        } catch {
+            NSLog("WalkPad: login item: \(error)")
+        }
+        refresh()
+    }
+
+    @objc func go() { pad.go(defaultSpeed) }
     @objc func stop() { pad.stop() }
-    @objc func speed(_ i: NSMenuItem) { pad.setSpeed(i.representedObject as! Double) }
+    // Picking a speed applies it now and keeps it as the speed Go starts at.
+    @objc func speed(_ i: NSMenuItem) {
+        defaultSpeed = i.representedObject as! Double
+        pad.setSpeed(defaultSpeed)
+        refresh()
+    }
 
     // walkpad://go, walkpad://stop, walkpad://speed/3.5
     func application(_ app: NSApplication, open urls: [URL]) {
         for u in urls {
             switch u.host {
-            case "go": pad.go()
+            case "go": pad.go(defaultSpeed)
             case "stop": pad.stop()
             case "speed": if let v = Double(u.lastPathComponent) { pad.setSpeed(v) }
             default: NSLog("WalkPad: unknown URL \(u)")
