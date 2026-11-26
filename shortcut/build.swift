@@ -41,8 +41,8 @@ func log(_ type: String, magnitude: [String: Any], unit: String) -> [String: Any
 }
 
 let actions: [[String: Any]] = [
-    // Sessions saved by the Mac app in iCloud Drive/Shortcuts/WalkPad.
-    action("documentpicker.open", ["UUID": "FOLDER", "WFGetFilePath": "WalkPad/", "WFShowFilePicker": false, "WFFileErrorIfNotFound": false]),
+    // Sessions saved by the Mac app in iCloud Drive/Shortcuts/Deskwalk.
+    action("documentpicker.open", ["UUID": "FOLDER", "WFGetFilePath": "Deskwalk/", "WFShowFilePicker": false, "WFFileErrorIfNotFound": false]),
     action("file.getfoldercontents", ["UUID": "FILES", "WFFolder": attachment(output("FOLDER", "File"))]),
     action("repeat.each", ["GroupingIdentifier": "EACH", "WFControlFlowMode": 0, "WFInput": attachment(output("FILES", "Contents of Folder"))]),
     action("detect.dictionary", ["UUID": "DICT", "WFInput": attachment(repeatItem)]),

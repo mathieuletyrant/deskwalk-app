@@ -14,9 +14,9 @@ func parse(_ m: [UInt8]) -> Stats? {
 }
 
 enum Session {
-    // iCloud Drive/Shortcuts/WalkPad: the folder the Shortcuts app reads without extra permission.
+    // iCloud Drive/Shortcuts/Deskwalk: the folder the Shortcuts app reads without extra permission.
     static let dir = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/WalkPad")
+        .appendingPathComponent("Library/Mobile Documents/iCloud~is~workflow~my~workflows/Documents/Deskwalk")
 
     static func save(_ s: Stats) {
         guard s.time >= 60 else { return }
@@ -32,7 +32,7 @@ enum Session {
             try JSONSerialization.data(withJSONObject: json)
                 .write(to: dir.appendingPathComponent("\(Int(end.timeIntervalSince1970)).json"))
         } catch {
-            NSLog("WalkPad: session not saved: \(error) \(json)")
+            NSLog("Deskwalk: session not saved: \(error) \(json)")
         }
     }
 }
@@ -148,7 +148,7 @@ final class App: NSObject, NSApplicationDelegate {
         menu.addItem(login)
         menu.addItem(withTitle: "Quitter", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
-        item.button?.image = NSImage(systemSymbolName: "figure.walk", accessibilityDescription: "WalkPad")
+        item.button?.image = NSImage(systemSymbolName: "figure.walk", accessibilityDescription: "Deskwalk")
         item.button?.imagePosition = .imageLeading
         pad.onChange = { [weak self] in self?.refresh() }
         refresh()
@@ -167,7 +167,7 @@ final class App: NSObject, NSApplicationDelegate {
         do {
             if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() } else { try SMAppService.mainApp.register() }
         } catch {
-            NSLog("WalkPad: login item: \(error)")
+            NSLog("Deskwalk: login item: \(error)")
         }
         refresh()
     }
@@ -181,14 +181,14 @@ final class App: NSObject, NSApplicationDelegate {
         refresh()
     }
 
-    // walkpad://go, walkpad://stop, walkpad://speed/3.5
+    // deskwalk://go, deskwalk://stop, deskwalk://speed/3.5
     func application(_ app: NSApplication, open urls: [URL]) {
         for u in urls {
             switch u.host {
             case "go": pad.go(defaultSpeed)
             case "stop": pad.stop()
             case "speed": if let v = Double(u.lastPathComponent) { pad.setSpeed(v) }
-            default: NSLog("WalkPad: unknown URL \(u)")
+            default: NSLog("Deskwalk: unknown URL \(u)")
             }
         }
     }
