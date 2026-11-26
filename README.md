@@ -17,7 +17,7 @@ Start walking from a launcher shortcut, see your steps in the menu bar, and send
 
 **Walk**
 
-- 🚶 **Menu bar**: steps and speed while the belt runs, the icon greys out when the pad is out of reach
+- 🚶 **Menu bar**: steps and time while the belt runs, the icon greys out when the pad is out of reach
 - ▶️ **Go / Stop** from the menu, or from any launcher through a URL
 - 🎚️ **Default speed**: pick a speed once, Go starts at it every time (1 to 6 km/h)
 - 📊 **Session** in the menu: minutes, distance, steps
@@ -72,15 +72,20 @@ macOS has no Health store, so the iPhone writes it. When the belt stops after a 
 }
 ```
 
-Build an iPhone Shortcut:
+**[📲 Install the Shortcut](https://github.com/mathieuletyrant/deskwalk-app/raw/main/shortcut/Deskwalk.shortcut)**: open the link on the iPhone, then **Add Shortcut**. It logs each session's steps and walking distance to Health, then deletes the file.
 
-1. **Get Contents of Folder**: `Shortcuts/WalkPad`
+Run it once by hand to grant Files and Health access. Then a personal automation (e.g. _When charger is connected_, _Run Immediately_) runs it on its own.
+
+<details>
+<summary>Build it by hand instead</summary>
+
+1. **Get File**: `WalkPad/` in the Shortcuts folder, then **Get Contents of Folder**
 2. **Repeat with Each**, then **Get Dictionary from Input**
-3. **Log Health Sample**: Steps = `steps`, from `start` to `end`
+3. **Log Health Sample**: Step Count = `steps`, from `start` to `end`
 4. **Log Health Sample**: Walking + Running Distance = `distanceKm` km, from `start` to `end`
 5. **Delete Files**: the item, without confirmation
 
-Then a personal automation (e.g. _When charger is connected_, _Run Immediately_) runs it on its own.
+</details>
 
 ## 🛠️ Develop
 
@@ -93,6 +98,7 @@ swiftc main.swift -o /tmp/walkpad && /tmp/walkpad --selftest   # protocol self-t
 main.swift   the whole app: WalkingPad protocol, BLE client, session export, menu bar
 icon.swift   renders docs/icon.png, turned into AppIcon.icns by build.sh
 Info.plist   bundle: menu bar only, Bluetooth usage, walkpad:// scheme
+shortcut/    the iPhone Shortcut and the script that builds and signs it (swift shortcut/build.swift)
 ```
 
 The protocol comes from [ph4-walkingpad](https://github.com/ph4r05/ph4-walkingpad): 6-byte frames `F7 A2 <cmd> <value> <crc> FD` written to `FE02`, status frames `F8 A2 …` notified on `FE01`, one command every 0.7 s.

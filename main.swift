@@ -157,7 +157,7 @@ final class App: NSObject, NSApplicationDelegate {
     func refresh() {
         let s = pad.stats
         item.button?.appearsDisabled = !pad.connected
-        item.button?.title = s.belt == 1 && pad.connected ? String(format: " %d pas · %.1f km/h", s.steps, s.speed) : ""
+        item.button?.title = s.belt == 1 && pad.connected ? String(format: " %d pas · %d:%02d", s.steps, s.time / 60, s.time % 60) : ""
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         speeds.items.forEach { $0.state = $0.representedObject as? Double == defaultSpeed ? .on : .off }
         info.title = pad.connected ? String(format: "%d min · %.2f km · %d pas", s.time / 60, s.distKm, s.steps) : "Recherche du tapis…"
